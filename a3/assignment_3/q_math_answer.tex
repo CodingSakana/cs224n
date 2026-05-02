@@ -1,0 +1,31 @@
+
+\begin{answer}
+    \begin{enumerate}[label=(\alph*)]
+        \item 
+        \begin{subparts}
+            \subpart The categorical distribution $\alpha$ puts almost all of its weight on $\alpha_j$ when the dot product $k_j^\top q$ is significantly larger than all other dot products $k_i^\top q$ for $i \neq j$. This happens when the query vector $q$ is much more similar to (has a much larger projection onto) the key $k_j$ compared to the other keys.
+            
+            \subpart Under these conditions, the output $c$ will be approximately equal to the value vector $v_j$, as it is a weighted sum where the weight $\alpha_j \approx 1$ and all other weights $\alpha_i \approx 0$.
+        \end{subparts}
+
+        \item To have $c \approx \frac{1}{2}(v_a + v_b)$, we need $\alpha_a \approx \alpha_b \approx 0.5$ and other $\alpha_i \approx 0$. Given orthogonal unit keys, we can set $q = \beta(k_a + k_b)$ for a large scalar $\beta > 0$. 
+        
+        \textbf{Justification:} The dot products are $q^\top k_a = \beta$, $q^\top k_b = \beta$, and $q^\top k_i = 0$ for $i \notin \{a, b\}$. Then $\alpha_a = \alpha_b = \frac{e^\beta}{2e^\beta + (n-2)e^0} = \frac{e^\beta}{2e^\beta + n - 2}$. As $\beta \to \infty$, $\alpha_a = \alpha_b \to 1/2$ and $\alpha_i \to 0$. Thus $c = \sum \alpha_i v_i \approx \frac{1}{2}v_a + \frac{1}{2}v_b$.
+
+        \item 
+        \begin{subparts}
+            \subpart Let $q = \beta(\mu_a + \mu_b)$ for a large $\beta$. Since $\Sigma_i = \alpha I$ with vanishingly small $\alpha$, $k_i \approx \mu_i$. The logic from part (b) applies: $k_a^\top q \approx \mu_a^\top q = \beta$ and $k_b^\top q \approx \mu_b^\top q = \beta$, while other keys have near-zero dot products. This results in $\alpha_a \approx \alpha_b \approx 0.5$, so $c \approx \frac{1}{2}(v_a + v_b)$.
+            
+            \subpart Since $k_a$ has a large variance in its magnitude (but points towards $\mu_a$), $k_a^\top q$ will fluctuate significantly across samples. If $|k_a^\top q| \gg |k_b^\top q|$, $c$ will be close to $v_a$. If $|k_a^\top q| \ll |k_b^\top q|$, $c$ will be close to $v_b$. Qualitatively, $c$ will often "swing" between $v_a$ and $v_b$ rather than being a stable average. The variance of $c$ will be high compared to part (i).
+        \end{subparts}
+
+        \item 
+        \begin{subparts}
+            \subpart We can design $q_1 = \beta \mu_a$ and $q_2 = \beta \mu_b$ for large $\beta$. Then $c_1 \approx v_a$ and $c_2 \approx v_b$. The final output is $\frac{1}{2}(c_1 + c_2) \approx \frac{1}{2}(v_a + v_b)$.
+            
+            \subpart For $c_1$, since $q_1 = \beta \mu_a$, even if $\|k_a\|$ varies, as long as it's the largest dot product (which it likely is, since others are $\approx 0$), $c_1$ remains $\approx v_a$ (it just becomes "sharper" or "flatter" in the softmax, but still centered on $v_a$). For $c_2$, $q_2 = \beta \mu_b$, so $k_b^\top q_2 \approx \beta$, and since $k_a^\top q_2 \approx 0$ (orthogonal means), $c_2 \approx v_b$ regardless of $\|k_a\|$. Thus, the average $\frac{1}{2}(c_1 + c_2)$ is much more stable and consistently close to $\frac{1}{2}(v_a + v_b)$ across samples.
+        \end{subparts}
+
+        \item Multi-headed attention allows different heads to focus on different features or tokens independently. This reduces the variance of the output because each head can reliably "pick" one specific value, and their average is less sensitive to magnitude fluctuations in individual keys that might otherwise cause a single head to "overpower" or "underpower" its attention on a subset of values.
+    \end{enumerate}
+\end{answer}

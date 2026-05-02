@@ -1,0 +1,36 @@
+
+
+\begin{answer}
+    \begin{enumerate}[label=(\alph*)]
+        \item 
+        \begin{subparts}
+            \subpart Let $\mathbf{X}_{\text{perm}} = \mathbf{P}\mathbf{X}$. 
+            Then $\mathbf{Q}_{\text{perm}} = \mathbf{P}\mathbf{X}\mathbf{W}_Q = \mathbf{P}\mathbf{Q}$, $\mathbf{K}_{\text{perm}} = \mathbf{P}\mathbf{X}\mathbf{W}_K = \mathbf{P}\mathbf{K}$, and $\mathbf{V}_{\text{perm}} = \mathbf{P}\mathbf{X}\mathbf{W}_V = \mathbf{P}\mathbf{V}$.
+            The attention output $\mathbf{H}_{\text{perm}}$ is:
+            \begin{align*}
+                \mathbf{H}_{\text{perm}} &= \text{softmax}\left(\frac{\mathbf{P}\mathbf{Q}(\mathbf{P}\mathbf{K})^{\top}}{\sqrt{d}}\right) \mathbf{P}\mathbf{V} \\
+                &= \text{softmax}\left(\mathbf{P} \frac{\mathbf{Q}\mathbf{K}^{\top}}{\sqrt{d}} \mathbf{P}^{\top}\right) \mathbf{P}\mathbf{V} \\
+                &= \mathbf{P} \text{softmax}\left(\frac{\mathbf{Q}\mathbf{K}^{\top}}{\sqrt{d}}\right) \mathbf{P}^{\top} \mathbf{P}\mathbf{V} \quad (\text{using the given identity}) \\
+                &= \mathbf{P} \text{softmax}\left(\frac{\mathbf{Q}\mathbf{K}^{\top}}{\sqrt{d}}\right) \mathbf{V} \quad (\text{since } \mathbf{P}^{\top}\mathbf{P} = \mathbf{I}) \\
+                &= \mathbf{P}\mathbf{H}
+            \end{align*}
+            Now for the feed-forward layer:
+            \begin{align*}
+                \mathbf{Z}_{\text{perm}} &= \text{ReLU}(\mathbf{H}_{\text{perm}}\mathbf{W}_1 + \mathbf{1}\cdot\mathbf{b}_1)\mathbf{W}_2 + \mathbf{1}\cdot\mathbf{b}_2 \\
+                &= \text{ReLU}(\mathbf{P}\mathbf{H}\mathbf{W}_1 + \mathbf{P}\mathbf{1}\cdot\mathbf{b}_1)\mathbf{W}_2 + \mathbf{P}\mathbf{1}\cdot\mathbf{b}_2 \quad (\text{since } \mathbf{P}\mathbf{1} = \mathbf{1}) \\
+                &= \text{ReLU}(\mathbf{P}(\mathbf{H}\mathbf{W}_1 + \mathbf{1}\cdot\mathbf{b}_1))\mathbf{W}_2 + \mathbf{1}\cdot\mathbf{b}_2 \\
+                &= \mathbf{P} \text{ReLU}(\mathbf{H}\mathbf{W}_1 + \mathbf{1}\cdot\mathbf{b}_1)\mathbf{W}_2 + \mathbf{1}\cdot\mathbf{b}_2 \quad (\text{using the given identity}) \\
+                &= \mathbf{P} (\text{ReLU}(\mathbf{H}\mathbf{W}_1 + \mathbf{1}\cdot\mathbf{b}_1)\mathbf{W}_2 + \mathbf{1}\cdot\mathbf{b}_2) = \mathbf{P}\mathbf{Z}
+            \end{align*}
+            
+            \subpart This property (permutation equivariance) means that the Transformer treats the input as a "bag of words" rather than a sequence. It has no inherent sense of word order. This is problematic for text because word order is crucial for meaning (e.g., "The dog bit the man" vs "The man bit the dog").
+        \end{subparts}
+
+        \item 
+        \begin{subparts}
+            \subpart Yes, position embeddings break the permutation equivariance. Since each position $t$ gets a unique vector $\Phi_t$ added to its word embedding, the input $\mathbf{X} + \Phi$ now contains information about where each token is. Shuffling $\mathbf{X}$ would result in different combined vectors at each position, allowing the model to distinguish order.
+            
+            \subpart No, they cannot be the same for $t_1 \neq t_2$. The encoding uses pairs of $\sin/\cos$ with different frequencies. For any two positions $t_1, t_2$, there will be at least one frequency $i$ where $(\sin(\omega_i t_1), \cos(\omega_i t_1)) \neq (\sin(\omega_i t_2), \cos(\omega_i t_2))$ due to the injective nature of these functions over the relevant range and the diversity of frequencies.
+        \end{subparts}
+    \end{enumerate}
+\end{answer}
