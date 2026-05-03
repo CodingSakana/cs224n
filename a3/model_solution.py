@@ -32,6 +32,7 @@ class ModelConfig:
 
 
 class CausalAttention(nn.Module):
+    causal_mask: Tensor
 
     def __init__(self, config: ModelConfig):
         super().__init__()
@@ -62,6 +63,19 @@ class CausalAttention(nn.Module):
     ) -> Float[Tensor, "batch seq_len d_model"]:
 
         # TODO, complete 
+        batch, seq_len, _ = x.shape
+        Q = self.W_q(x).view(batch, seq_len, -1, self.d_attention).transpose(1, 2)
+        K = self.W_k(x).view(batch, seq_len, -1, self.d_attention).transpose(1, 2)
+        V = self.W_v(x).view(batch, seq_len, -1, self.d_attention).transpose(1, 2)
+
+        scores = Q @ K.transpose(-2, -1) / math.sqrt(self.d_attention)
+        mask = self.causal_mask[:, :, :seq_len, :seq_len]
+        scores = scores.masked_fill(mask == 0, float('-inf'))
+
+        attn_weights = F.softmax(scores, dim=-1)
+        out = attn_weights @ V
+        
+        return self.W_o(out.transpose(1, 2).reshape(batch, seq_len, -1)) 
         return torch.empty(1)
 
 
@@ -89,6 +103,7 @@ class MLP(nn.Module):
     ) -> Float[Tensor, "batch seq_len d_model"]:
 
         # TODO, complete
+        return self.fc2(self.gelu(self.fc1(x)))
         return torch.empty(1)
         
 
@@ -107,6 +122,10 @@ class DecoderBlock(nn.Module):
     ) -> Float[Tensor, "batch seq_len d_model"]:
 
         # TODO complete
+        x = x + self.attention(self.pre_layer_norm(x))
+        x = x + self.mlp(self.post_layer_norm(x))
+        return x
+
         return torch.empty(1)
 
 
@@ -121,6 +140,7 @@ class Transformer(nn.Module):
         self.backbone = nn.ModuleList([DecoderBlock(config) for _ in range(config.n_layers)])
         self.final_layer_norm = nn.LayerNorm(config.d_model)
         self.lm_head = nn.Linear(config.d_model, config.vocab_size, bias=False)
+        # self.lm_head.weight = self.embeddings.weight
 
         self._init_weights()
 
@@ -139,7 +159,7 @@ class Transformer(nn.Module):
 
         # init all weights, and apply a special scaled init to the residual projections, per GPT-2 paper
         for pn, p in self.named_parameters():
-            if pn.endswith("c_proj.weight"):
+            if pn.endswith("W_o.weight") or pn.endswith("fc2.weight"):
                 torch.nn.init.normal_(
                     p, mean=0.0, std=0.02 / math.sqrt(2 * self.config.n_layers)
                 )
@@ -149,6 +169,11 @@ class Transformer(nn.Module):
     ) -> Float[Tensor, "batch seq_len vocab_size"]:
 
         # TODO, complete
+        _, seq_len = x.shape
+        x = self.embeddings(x) + self.position_embeddings(torch.arange(seq_len, device=x.device))
+        for block in self.backbone:
+            x = block(x)
+        return self.lm_head(self.final_layer_norm(x))
         return torch.empty(1)
 
     @torch.no_grad()
@@ -159,6 +184,13 @@ class Transformer(nn.Module):
     ) -> Int[Tensor, "batch_size seq_len+num_new_tokens"]:
 
         # TODO, complete
+        for _ in range(num_new_tokens):
+            input = x[:, -self.config.context_length:]
+            forward_logits = self(input)[:, -1, :]
+            next_token_id = torch.argmax(forward_logits, dim=-1)
+            x = torch.cat([x, next_token_id.unsqueeze(1)], dim=1)
+
+        return x
         return torch.empty(1)
 
 
@@ -168,6 +200,9 @@ class Transformer(nn.Module):
     ) -> Float[Tensor, ""]:
 
         # TODO, complete
+        forward_logits = self(input_ids)[:, :-1, :].reshape(-1, self.config.vocab_size)
+        input_ids = input_ids[:, 1:].reshape(-1)
+        return F.cross_entropy(forward_logits, input_ids)
         return torch.empty(1)
 
 

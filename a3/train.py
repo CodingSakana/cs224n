@@ -58,6 +58,9 @@ def get_chunked_tinystories(
     return torch.tensor(chunks, dtype=torch.long)
 
 
+import argparse
+import pandas as pd
+
 def plot_results(
     losses: List[float],
     grad_norms: List[float],
@@ -89,8 +92,13 @@ def train(
     gradient_clipping: Optional[float],
     model_config: ModelConfig,
     batch_size: int,
+    experiment_name: str,
     max_steps: Optional[int] = None,
 ) -> None:
+
+    # Setup experiment directory
+    exp_dir = f"./results/{experiment_name}"
+    os.makedirs(exp_dir, exist_ok=True)
 
     if gradient_clipping is None:
         # This lets us just get the grad norm but we don't clip
@@ -128,9 +136,6 @@ def train(
         if max_steps is not None and num_steps_completed >= max_steps:
             break
 
-        if num_steps_completed % 10 == 0 and num_steps_completed > 0:
-            plot_results(losses, grad_norms, save_path=f"./losses_and_grad_norms.png")
-
         batch: Int[Tensor, "batch_size chunk_size"] = dataset[i:i+batch_size].to(device)
 
         optimizer.zero_grad()
@@ -152,13 +157,32 @@ def train(
 
         num_steps_completed += 1
 
+        if num_steps_completed % 10 == 0:
+            plot_results(losses, grad_norms, save_path=f"{exp_dir}/losses_and_grad_norms.png")
+
 
     # Done with training, plot results in single plot
-    plot_results(losses, grad_norms, save_path="./losses_and_grad_norms.png")
+    plot_results(losses, grad_norms, save_path=f"{exp_dir}/losses_and_grad_norms.png")
+    
+    # Save model weights
+    torch.save(model.state_dict(), f"{exp_dir}/model_weights.pt")
+    
+    # Save step-wise metrics to CSV
+    df = pd.DataFrame({
+        'step': range(1, num_steps_completed + 1),
+        'loss': losses,
+        'grad_norm': grad_norms
+    })
+    df.to_csv(f"{exp_dir}/metrics.csv", index=False)
+    print(f"Experiment {experiment_name} completed. Results saved to {exp_dir}")
 
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Train a simple transformer model")
+    parser.add_argument("-n", "--exp_name", type=str, default="default_exp", help="Name of the experiment")
+    parser.add_argument("-l", "--learning_rate", type=float, default=1e-5, help="Learning rate")
+    args = parser.parse_args()
 
     tiny_model_config = ModelConfig(
         d_model=33,
@@ -169,10 +193,11 @@ if __name__ == "__main__":
     )
 
     train(
-        learning_rate=1e-5,
+        learning_rate=args.learning_rate,
         gradient_clipping=1,
         model_config = tiny_model_config,
         batch_size=16,
+        experiment_name=args.exp_name,
         max_steps=100,
     )
 
